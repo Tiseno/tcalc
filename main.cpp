@@ -108,14 +108,7 @@ void skip_space(F f) {
 	}
 }
 
-void skip_white(F f) {
-	C c = f->peek();
-	while(f->good() && (isspace(c))) { // || c == '#')) {
-		// if(c == '#') { while(c != '\n') { f->get(c); c = f->peek(); }}
-		f->get(c);
-		c = f->peek();
-	}
-}
+void skip_white(F f) { C c = f->peek(); while(f->good() && (isspace(c))) { f->get(c); c = f->peek(); } }
 
 bool issymbolstart(C c) {
 	return isalpha(c);
@@ -136,7 +129,7 @@ bool isPrefix(S s) {
 }
 
 bool isAsciiOperator(C c) {
-	return !isPrefix(string(1, c))
+	return c != '.' && !isspace(c) && !isPrefix(string(1, c))
 		&& ((c >= 0 && c <= 47)
 				|| (c >= 58 && c <= 64)
 				|| (c >= 91 && c <= 94)
@@ -149,7 +142,7 @@ bool isAsciiSymbolOrDecimal(C c) {
 
 Token lex_number(F f) {
 	C c = f->peek();
-	S s = "";
+	S s = "0";
 	while(isdigit(c)) {
 		f->get(c);
 		s += c;
@@ -263,7 +256,7 @@ vector<Token> lex_line(F f) {
 	while(f->good()){
 		if(isCapitalLetter(c)) {
 			tokens.push_back(lex_constant(f));
-		} else if(isdigit(c)) {
+		} else if(c == '.' || isdigit(c)) {
 			tokens.push_back(lex_number(f));
 		} else if(c == '(') {
 			f->get(c);
@@ -506,8 +499,8 @@ int main() {
 
 		stringstream str_stream(in);
 		vector<Token> tokens = lex_line(&str_stream);
-		Parsed ast = parse_E(tokens.begin(), tokens.end());
 		// print_tokens(tokens);
+		Parsed ast = parse_E(tokens.begin(), tokens.end());
 		// print_ast(ast.e);
 		N out = eval(ast.e);
 		if(!error) {
