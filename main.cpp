@@ -25,19 +25,22 @@ int main() {
 		Tokens tokens = lex_line(&str_stream);
 		// print_tokens(tokens);
 
-		Parsed ast = parse_E(tokens.begin(), tokens.end());
+		Parsed ast = parse(tokens.begin(), tokens.end());
 		// print_ast(ast.e);
 
-		N out = eval(ast.e);
+		if(parse_error) {
+			parse_error = false;
+			continue;
+		}
 
-		if(!error) {
-			repl_n[repl_counter] = out;
+		Val out = run(ast.e);
+
+		if(!out.error) {
+			repl_n[repl_counter] = out.n;
 			repl_s[repl_counter] = in;
 			repl_counter++;
-			cout << out;
+			cout << out.n << endl;
 		}
-		error = false;
-		cout << endl;
 	}
 	return 0;
 }

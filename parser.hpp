@@ -4,22 +4,27 @@
 #include "state.hpp"
 #include "lexer.hpp"
 
-void err(S what) {
-	cout << "ERROR: " << what << std::endl;
-	error = true;
-	if(!REPL) throw 0; // TODO handle error better
+void parse_warn(S what) {
+	cout << "Warning: " << what << std::endl;
+}
+
+void parse_err(S what) {
+	cout << "Error: " << what << std::endl;
+	parse_error = true;
 }
 
 enum ASTType {
 	EApply,
 	EValue,
-	ERef,
+	ESymbol,
+	EError,
 };
 
 struct AST;
 
 struct AST {
 	ASTType t;
+	I i;
 	N n;
 	S ref;
 
@@ -34,7 +39,13 @@ struct Parsed {
 };
 
 // Grammar
-// E2    ::=    E2* | (E) | Symbol | Number | Const
+// E3    ::=    (E) | Symbol | Number | Const | Ref | E3 ^ E3 // TODO
+// E2    ::=    E3*
+// E1    ::=    E2 Op E1 | E2
+// E     ::=    E1 + E | E1 - E | E1 | EOF
+
+// Grammar
+// E2    ::=    E2* | (E) | Symbol | Number | Const | Ref
 // E1    ::=    E2 Op E1 | E2
 // E     ::=    E1 + E | E1 - E | E1 | EOF
 
@@ -47,28 +58,63 @@ Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
 			&& (it->type == TLParen
 				|| it->type == TSymbol
 				|| it->type == TNumber
-				|| it->type == TConstant)) {
+				|| it->type == TConstant
+				|| it->type == TRefIntegral
+				|| it->type == TRefSymbol)) {
 		if(it->type == TLParen) {
 			it = next(it);
 			Parsed e = parse_E(it, end);
 			it = e.next;
 			if(it->type != TRParen) {
-				err("Expected right parens");
-                // TODO Handle error better
+				parse_err("Expected right parens"); // TODO Handle error better
+			} else {
+				it = next(it);
 			}
-			it = next(it);
 			exprs.push_back(e.e);
+		} else if(it->type == TSymbol) {
+			AST* a = new AST();
+			a->t = ESymbol;
+			a->ref = it->s;
+			exprs.push_back(a);
+			it = next(it);
 		} else {
-			if(it->type == TNumber || it->type == TConstant) {
+			if(it->type == TNumber) {
 				AST* a = new AST();
 				a->t = EValue;
 				a->n = it->n;
 				exprs.push_back(a);
-			} else {
-				// TODO SYMBOLS TO REF
+			} else if (it->type == TConstant) {
 				AST* a = new AST();
 				a->t = EValue;
-				a->n = it->n;
+				auto constant = constants.find(it->s);
+				if(constant == constants.end()) {
+					parse_err("Could not find constant '" + it->s + "'");
+					a->t = EError;
+				} else {
+					a->n = constant->second;
+				}
+				exprs.push_back(a);
+			} else if(it->type == TRefIntegral ) {
+				AST* a = new AST();
+				a->t = EValue;
+				auto n = repl_n.find(it->i);
+				if(n == repl_n.end()) {
+					parse_err("Line " + to_string(it->i) + " not executed yet");
+					a->t = EError;
+				} else {
+					a->n = n->second;
+				}
+				exprs.push_back(a);
+			} else if(it->type == TRefSymbol) {
+				AST* a = new AST();
+				a->t = EValue;
+				auto n = refs.find(it->s);
+				if(n == refs.end()) {
+					parse_err("Could not find reference '" + it->s + "'");
+					a->t = EError;
+				} else {
+					a->n = n->second;
+				}
 				exprs.push_back(a);
 			}
 			it = next(it);
@@ -76,8 +122,10 @@ Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
 	}
 
 	if (exprs.size() == 0) {
-		err("No E2 expression");
-        // TODO Handle error better
+		parse_err("Unexpected " + it->show() + " when parsing E2 expression");
+		AST* a = new AST;
+		a->t = EError;
+		return { a, it };
 	}
 
 	if (exprs.size() == 1) {
@@ -121,9 +169,6 @@ Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
 }
 
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
-	// if(current-current->type == TEOF) {
-	// 	return { EEOF, end };
-	// }
 	Parsed e = parse_E1(current, end);
 	auto it = e.next;
 	if(it->type == T1Operator) {
@@ -138,28 +183,34 @@ Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
 	return e;
 }
 
-void print_astr(AST* ast);
+Parsed parse(const TokenIterator& current, const TokenIterator& end) {
+	Parsed e = parse_E(current, end);
+	if(e.next->type == TEnd) {
+		return e;
+	}
+	parse_err("Did not reach end of input when parsing expression");
+	return e;
+}
 
-void print_astr(AST* ast) {
+S show_ast(AST* ast);
+
+S show_ast(AST* ast) {
 	switch(ast->t) {
 		case EApply:
-			cout << "(";
-			print_astr(ast->e1);
-			cout << " " << ast->op << " ";
-			print_astr(ast->e2);
-			cout << ")";
-			return;
+			return "Apply(" + show_ast(ast->e1)+ " " + ast->op + " " + show_ast(ast->e2) + ")";
 		case EValue:
-			cout << ast->n;
-			return;
-		case ERef:
-			cout << "REF#" << ast->ref;
-			return;
+			return to_string(ast->n);
+		case ESymbol:
+			return ast->ref;
+		case EError:
+			return "Error";
 	}
+	return "Unknown";
 }
 
 void print_ast(AST* ast) {
-	print_astr(ast);
-	cout << endl;
+	if(ast->t == EError)
+		return;
+	cout << show_ast(ast) << endl;
 }
 

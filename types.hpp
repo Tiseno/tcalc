@@ -7,8 +7,9 @@ using namespace std;
 
 typedef char C;
 typedef string S;
-typedef unsigned long long I;
+typedef long long I;
 typedef long double N;
+typedef bool E;
 
 typedef istream* F;
 

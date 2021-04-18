@@ -9,18 +9,24 @@
 
 enum TokenType {
 	TSymbol,
+	TIntegral,
 	TNumber,
 	TConstant,
 	TLParen,
 	TRParen,
 	T1Operator,
 	T2Operator,
-	TEOF,
+	T3Operator,
+	TPrefix,
+	TRefIntegral,
+	TRefSymbol,
+	TEnd,
 };
 
 struct Token {
 	TokenType type;
 	S s;
+	I i;
 	N n;
 	S err;
 
@@ -33,18 +39,30 @@ struct Token {
 	S show() const {
 		if(type == TSymbol) {
 			return "Symbol[" + s + "]" + show_err();
+		} else if(type == TIntegral) {
+			return "Integral[" + to_string(i) + "]" + show_err();
 		} else if(type == TNumber) {
 			return "Number[" + to_string(n) + "]" + show_err();
 		} else if(type == TConstant) {
 			return "Constant[" + s + "]" + show_err();
+		} else if(type == T1Operator) {
+			return "Operator1[" + s + "]" + show_err();
 		} else if(type == T2Operator) {
-			return "Operator[" + s + "]" + show_err();
+			return "Operator2[" + s + "]" + show_err();
+		} else if(type == T3Operator) {
+			return "Operator3[" + s + "]" + show_err();
+		} else if(type == TPrefix) {
+			return "Prefix[" + s + "]" + show_err();
+		} else if(type == TRefIntegral) {
+			return "RefIntegral[" + to_string(i) + "]" + show_err();
+		} else if(type == TRefSymbol) {
+			return "RefSymbol[" + s + "]" + show_err();
 		} else if(type == TLParen) {
 			return "LParen" + show_err();
 		} else if(type == TRParen) {
 			return "RParen" + show_err();
-		} else if(type == TEOF) {
-			return "EOF" + show_err();
+		} else if(type == TEnd) {
+			return "End" + show_err();
 		}
 		return "TokenNotImplemented[" + s + "]" + show_err();
 	}
@@ -58,8 +76,12 @@ bool isCapitalLetter(C c) {
 	return (c >= 65 && c <= 90);
 }
 
+bool isAsciiPrefix(C c) {
+	return c == '!' || c == '@' || c == '#';
+}
+
 bool isPrefix(S s) {
-	return s == "§" || s == "@" || s == "#" || s == "¤";
+	return s == "!" || s == "@" || s == "#" || s == "¤" || s == "§" ;
 }
 
 bool isAsciiOperator(C c) {
@@ -76,6 +98,25 @@ void skip_space(F f) {
 		f->get(c);
 		c = f->peek();
 	}
+}
+
+Token lex_integral(F f) {
+	C c = f->peek();
+	S s = "0";
+	while(isdigit(c)) {
+		f->get(c);
+		s += c;
+		c = f->peek();
+	}
+	I i = 1;
+	S err = "";
+	try {
+		i = stoll(s);
+	} catch(...) {
+		err = "Exception when parsing integral '" + s + "'";
+	}
+
+	return { TIntegral, s, i, 1, err };
 }
 
 Token lex_number(F f) {
@@ -104,7 +145,7 @@ Token lex_number(F f) {
 		err = "Exception when parsing number '" + s + "'";
 	}
 
-	return { TNumber, s, n, err };
+	return { TNumber, s, 1, n, err };
 }
 
 Token lex_constant(F f) {
@@ -115,11 +156,7 @@ Token lex_constant(F f) {
 		s += c;
 		c = f->peek();
 	}
-	auto n = constants.find(s);
-	if(n == constants.end()) {
-		return { TConstant, s, 1, "Could not find constant '" + s + "'" };
-	}
-	return { TConstant, s, n->second, "" };
+	return { TConstant, s, 1, 1, "" };
 }
 
 Token lex_symbol(F f) {
@@ -184,7 +221,7 @@ Token lex_symbol(F f) {
 	// 	cout << "REFERENCE" << endl;
 	// else
 	// 	cout << "UNKNOWN PREFIX" << prefix << endl;
-	return { TSymbol, s, 0, "" };
+	return { TSymbol, s, 1, 1, "" };
 }
 
 Tokens lex_line(F f) {
@@ -194,14 +231,33 @@ Tokens lex_line(F f) {
 	while(f->good()){
 		if(isCapitalLetter(c)) {
 			tokens.push_back(lex_constant(f));
+		} else if(isAsciiPrefix(c)) {
+			C prefix = c;
+			if (c == '!') {
+				f->get(c);
+				c = f->peek();
+				if (isdigit(c)) {
+					auto t = lex_integral(f);
+					t.type = TRefIntegral;
+					tokens.push_back(t);
+				} else {
+					auto t = lex_symbol(f);
+					t.type = TRefSymbol;
+					tokens.push_back(t);
+				}
+			} else {
+				f->get(c);
+				tokens.push_back({ TPrefix, string(1, prefix), 1, 1, "" });
+				c = f->peek();
+			}
 		} else if(c == '.' || isdigit(c)) {
 			tokens.push_back(lex_number(f));
 		} else if(c == '(') {
 			f->get(c);
-			tokens.push_back({ TLParen, "", 0, "" });
+			tokens.push_back({ TLParen, "", 1, 1, "" });
 		} else if(c == ')') {
 			f->get(c);
-			tokens.push_back({ TRParen, "", 0, "" });
+			tokens.push_back({ TRParen, "", 1, 1, "" });
 		} else if(isAsciiOperator(c)) {
 			S s = "";
 			s += c;
@@ -212,9 +268,11 @@ Tokens lex_line(F f) {
 				s += c2;
 			}
 			if(c == '+' || c == '-') {
-				tokens.push_back({ T1Operator, s, 0, "" });
+				tokens.push_back({ T1Operator, s, 1, 1, "" });
+			} else if(c == '^') {
+				tokens.push_back({ T2Operator, s, 1, 1, "" }); // TODO Make this a E3 operator
 			} else {
-				tokens.push_back({ T2Operator, s, 0, "" });
+				tokens.push_back({ T2Operator, s, 1, 1, "" });
 			}
 		} else {
 			tokens.push_back(lex_symbol(f));
@@ -222,7 +280,7 @@ Tokens lex_line(F f) {
 		skip_space(f);
 		c = f->peek();
 	}
-	tokens.push_back({ TEOF, "", 0, "" });
+	tokens.push_back({ TEnd, "", 1, 1, "" });
 	return tokens;
 }
 
@@ -230,6 +288,8 @@ void print_tokens(const Tokens& tokens) {
 	for(const auto& s : tokens) {
 		cout << s.show() << " ";
 	}
-	cout << endl;
+	if(tokens.size() > 0) {
+		cout << endl;
+	}
 }
 
