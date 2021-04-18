@@ -16,8 +16,10 @@ int main() {
 		S in;
 		cout << repl_counter << " <- ";
 		getline(cin,in);
-		if(in.length() == 0)
+		if(in.length() == 0) {
+			cout << "\e[A" << '\r' << "                    " << endl;
 			continue;
+		}
 
 		stringstream str_stream(in);
 		Tokens tokens = lex_line(&str_stream);
