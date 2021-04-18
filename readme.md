@@ -1,0 +1,4 @@
+# calc
+
+Command line calculator.
+
