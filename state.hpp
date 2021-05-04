@@ -12,6 +12,8 @@ unordered_map<S, N> constants = {
 	{"USD_TO_SEK", 8.44},
 	{"SEK_TO_USD", 0.118483412322},
 	{"INF", 1/(N)0},
+	{"CPW", 21/(N)340},
+	{"WPC", 340/(N)21},
 };
 
 unordered_map<S, N> refs;
