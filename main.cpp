@@ -1,5 +1,8 @@
 #include <iostream>
 
+#include "readline/readline.h"
+#include "readline/history.h"
+
 #include "types.hpp"
 #include "state.hpp"
 #include "lexer.hpp"
@@ -13,13 +16,13 @@ int main() {
 
 	I repl_counter = 0;
 	while(true) {
-		S in;
-		cout << repl_counter << " <- ";
-		getline(cin,in);
+		S prompt = to_string(repl_counter) + " <- ";
+		S in = readline(prompt.c_str());
 		if(in.length() == 0) {
 			cout << "\e[A" << '\r' << "                    " << endl;
 			continue;
 		}
+		add_history(in.c_str());
 
 		stringstream str_stream(in);
 		Tokens tokens = lex_line(&str_stream);

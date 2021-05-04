@@ -1,5 +1,5 @@
 
 default:
-	g++ main.cpp  -std=c++2a -Wall -o calc.out
+	g++ main.cpp  -std=c++2a -Wall -o calc.out -lreadline
 	./calc.out
 
