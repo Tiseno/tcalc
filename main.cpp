@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "readline/readline.h"
-#include "readline/history.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include "types.hpp"
 #include "state.hpp"
