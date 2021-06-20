@@ -49,6 +49,9 @@ struct Parsed {
 // E1    ::=    E2 Op E1 | E2
 // E     ::=    E1 + E | E1 - E | E1 | EOF
 
+// Alternative definition
+// E     ::=    E1 ([+-] E1)* | EOF
+
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end);
 
 Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
@@ -171,14 +174,15 @@ Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
 	Parsed e = parse_E1(current, end);
 	auto it = e.next;
-	if(it->type == T1Operator) {
-		Parsed e2 = parse_E(next(it), end);
+	while(it->type == T1Operator) {
+		Parsed e2 = parse_E1(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
 		b->e1 = e.e;
 		b->e2 = e2.e;
 		b->op = it->s;
-		return { b, e2.next };
+		it = e2.next;
+		e = { b, it };
 	}
 	return e;
 }
