@@ -26,10 +26,15 @@ int main() {
 
 		stringstream str_stream(in);
 		Tokens tokens = lex_line(&str_stream);
-		// print_tokens(tokens);
+#ifdef DEBUG
+		print_tokens(tokens);
+#endif
 
 		Parsed ast = parse(tokens.begin(), tokens.end());
-		// print_ast(ast.e);
+#ifdef DEBUG
+		print_ast(ast.e);
+		pretty_print_ast(ast.e);
+#endif
 
 		if(parse_error) {
 			parse_error = false;
