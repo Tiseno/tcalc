@@ -54,7 +54,7 @@ int main(int argc, char * argv[]) {
 		print_ast(parsed.e);
 #endif
 
-		if(parsed.e->t != EValue && parsed.e->t != EError)
+		if(parsed.e->t == EApply)
 			pretty_print_ast(parsed.e);
 
 		if(parse_error) {
@@ -70,6 +70,7 @@ int main(int argc, char * argv[]) {
 			repl_counter++;
 			cout << ANSI_FG_YELLOW << to_trimmed_string(out.n) << ANSI_RESET << endl;
 		}
+		cout << endl;
 	}
 	return 0;
 }
