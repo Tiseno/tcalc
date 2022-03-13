@@ -31,6 +31,7 @@ enum ASTType {
 	EApply,
 	EValue,
 	ESymbol,
+	EConstant,
 	ERef,
 	EError,
 };
@@ -124,15 +125,8 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 				exprs.push_back(a);
 			} else if (it->type == TConstant) {
 				AST* a = new AST();
-				a->t = EValue;
-				auto constant = constants.find(it->s);
-				// TODO do this in eval
-				if(constant == constants.end()) {
-					parse_err("Could not find constant '" + it->s + "'");
-					a->t = EError;
-				} else {
-					a->n = constant->second;
-				}
+				a->t = EConstant;
+				a->ref = it->s;
 				exprs.push_back(a);
 			} else if(it->type == TPrefix) {
 				if(it->s == "!") {
@@ -324,6 +318,8 @@ S show_ast(AST* ast) {
 			return ANSI_FG_YELLOW + to_string(ast->n) + ANSI_RESET;
 		case ESymbol:
 			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
+		case EConstant:
+			return ANSI_FG_PINK + ast->ref + ANSI_RESET;
 		case ERef:
 			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:
@@ -347,6 +343,8 @@ S pretty_show_ast(AST* ast) {
 		}
 		case ESymbol:
 			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
+		case EConstant:
+			return ANSI_FG_PINK + ast->ref + ANSI_RESET;
 		case ERef:
 			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:

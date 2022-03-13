@@ -10,8 +10,8 @@ Command line calculator.
 - [x] CLI arguments as input an evaluate it
 - [x] reference to previous lines (expression)
 - [x] reference to the line before
+- [x] evaluate constants in eval
 - [ ] pretty print with precedences
-- [ ] evaluate constants in eval
 - [ ] symbols mapping to built in functions
 - [ ] ability to define functions and symbols
 - [ ] automatically cache results from executions and functions

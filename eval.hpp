@@ -52,9 +52,23 @@ Val run(AST* ast) {
 			}
 		case ESymbol:
 			{
-				// TODO evaluate symbols
-				run_err("Could not evaluate symbol '" + ast->ref + "'");
-				return { 0, true };
+				auto symbol = symbols.find(ast->ref);
+				if(symbol == symbols.end()) {
+					run_err("Could not find symbol '" + ast->ref + "'");
+					return { 0, true };
+				} else {
+					return { symbol->second, false };
+				}
+			}
+		case EConstant:
+			{
+				auto constant = constants.find(ast->ref);
+				if(constant == constants.end()) {
+					run_err("Could not find constant '" + ast->ref + "'");
+					return { 0, true };
+				} else {
+					return { constant->second, false };
+				}
 			}
 		case ERef:
 			{
