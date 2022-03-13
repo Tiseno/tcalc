@@ -14,9 +14,12 @@ enum TokenType {
 	TConstant,
 	TLParen,
 	TRParen,
+	T0Operator,
 	T1Operator,
 	T2Operator,
 	T3Operator,
+	T4Operator,
+	T5Operator,
 	TPrefix,
 	TRefIntegral,
 	TRefSymbol,
@@ -45,12 +48,18 @@ struct Token {
 			return "Number[" + to_string(n) + "]" + show_err();
 		} else if(type == TConstant) {
 			return "Constant[" + s + "]" + show_err();
+		} else if(type == T0Operator) {
+			return "Operator0[" + s + "]" + show_err();
 		} else if(type == T1Operator) {
 			return "Operator1[" + s + "]" + show_err();
 		} else if(type == T2Operator) {
 			return "Operator2[" + s + "]" + show_err();
 		} else if(type == T3Operator) {
 			return "Operator3[" + s + "]" + show_err();
+		} else if(type == T4Operator) {
+			return "Operator4[" + s + "]" + show_err();
+		} else if(type == T5Operator) {
+			return "Operator5[" + s + "]" + show_err();
 		} else if(type == TPrefix) {
 			return "Prefix[" + s + "]" + show_err();
 		} else if(type == TRefIntegral) {
@@ -268,11 +277,15 @@ Tokens lex_line(F f) {
 				s += c2;
 			}
 			if(c == '+' || c == '-') {
-				tokens.push_back({ T1Operator, s, 1, 1, "" });
-			} else if(c == '^') {
-				tokens.push_back({ T2Operator, s, 1, 1, "" }); // TODO Make this a E3 operator
-			} else {
+				tokens.push_back({ T0Operator, s, 1, 1, "" });
+			} else if(c == '*') {
 				tokens.push_back({ T2Operator, s, 1, 1, "" });
+			} else if(c == '/') {
+				tokens.push_back({ T3Operator, s, 1, 1, "" });
+			} else if(c == '^') {
+				tokens.push_back({ T4Operator, s, 1, 1, "" });
+			} else {
+				tokens.push_back({ T1Operator, s, 1, 1, "" }); // This is all custom operators precedence
 			}
 		} else {
 			tokens.push_back(lex_symbol(f));

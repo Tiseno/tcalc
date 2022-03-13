@@ -1,8 +1,14 @@
 #pragma once
 
+#include <iostream>
+
 #include "types.hpp"
 #include "state.hpp"
 #include "lexer.hpp"
+
+bool debug = false;
+
+void p(std::string s) { if(debug) std::cout << s << "\n"; }
 
 void parse_warn(S what) {
 	cout << "Warning: " << what << std::endl;
@@ -38,23 +44,40 @@ struct Parsed {
 	TokenIterator next;
 };
 
-// Grammar
-// E3    ::=    (E) | Symbol | Number | Const | Ref | E3 ^ E3 // TODO
-// E2    ::=    E3*
-// E1    ::=    E2 Op E1 | E2
-// E     ::=    E1 + E | E1 - E | E1 | EOF
+// Left associativity of all operators
+// 1/2/3/4
+// Now: (1 / (2 / (3 / 4)))
+// Expected: ((1 / 2) / 3) / 4
+// 0.0416666666667
+// 2.^3./4.^5./6.^7./2.^3./4.*3.
+// Now:      (2 ^ (3 / (4 ^ (5 / (6 ^ (7 / (2 ^ (3 / (4 * 3)))))))))
+// Expected: (((((2 ^ 3) / (4 ^ 5)) / (6 ^ 7)) / (2 ^ 3)) / 4) * 3
+// 2.61639044282e-9
 
-// Grammar
-// E2    ::=    E2* | (E) | Symbol | Number | Const | Ref
-// E1    ::=    E2 Op E1 | E2
-// E     ::=    E1 + E | E1 - E | E1 | EOF
+// Correct precedence
+// 10^6*1^2*10^6*10/10^8^1*8
+// Now:      (10 ^ (6 * (1 ^ (2 * (10 ^ (6 * (10 / (10 ^ (8 ^ (1 * 8))))))))))
+// Expected: (((((10 ^ 6) * (1 ^ 2)) * (10 ^ 6)) * 10) / (10 ^ (8 ^ 1))) * 8
+// 800000
 
-// Alternative definition
-// E     ::=    E1 ([+-] E1)* | EOF
+// TODO assignment
+// E6    ::=    Symbol (<- E)* | (E) | Number | Const | Ref
+
+// New grammar
+// E6    ::=    (E) | Symbol | Number | Const | Ref
+// E5    ::=    E6*
+// E4    ::=    E5 ^ E4 | E5
+// E3    ::=    E4 / E3 | E4
+// E2    ::=    E3 * E2 | E3
+// E1    ::=    E2 Op E1 | E2
+// E     ::=    E1 + E | E1 - E | E1
+// P     ::=    E EOF
 
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end);
 
-Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
+// E5_6  ::=    ((E) | Symbol | Number | Const | Ref)*
+Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E5_6");
 	auto it = current;
 	vector<AST*> exprs;
 	while(it != end
@@ -64,6 +87,7 @@ Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
 				|| it->type == TConstant
 				|| it->type == TRefIntegral
 				|| it->type == TRefSymbol)) {
+		p(it->show());
 		if(it->type == TLParen) {
 			it = next(it);
 			Parsed e = parse_E(it, end);
@@ -156,7 +180,60 @@ Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
 	return { a, it };
 }
 
+// E4    ::=    E5 ^ E4 | E5
+Parsed parse_E4(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E4");
+	Parsed e = parse_E5_6(current, end);
+	auto it = e.next;
+	if(it->type == T5Operator) {
+		Parsed e2 = parse_E4(next(it), end);
+		AST* b = new AST;
+		b->t = EApply;
+		b->e1 = e.e;
+		b->e2 = e2.e;
+		b->op = it->s;
+		return { b, e2.next };
+	}
+	return e;
+}
+
+// E3    ::=    E4 / E3 | E4
+Parsed parse_E3(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E3");
+	Parsed e = parse_E4(current, end);
+	auto it = e.next;
+	if(it->type == T4Operator) {
+		Parsed e2 = parse_E3(next(it), end);
+		AST* b = new AST;
+		b->t = EApply;
+		b->e1 = e.e;
+		b->e2 = e2.e;
+		b->op = it->s;
+		return { b, e2.next };
+	}
+	return e;
+}
+
+// E2    ::=    E3 * E2 | E3
+Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E2");
+	Parsed e = parse_E3(current, end);
+	auto it = e.next;
+	if(it->type == T3Operator) {
+		Parsed e2 = parse_E2(next(it), end);
+		AST* b = new AST;
+		b->t = EApply;
+		b->e1 = e.e;
+		b->e2 = e2.e;
+		b->op = it->s;
+		return { b, e2.next };
+	}
+	return e;
+}
+
+// E1    ::=    E2 Op E1 | E2
 Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E1");
 	Parsed e = parse_E2(current, end);
 	auto it = e.next;
 	if(it->type == T2Operator) {
@@ -171,10 +248,13 @@ Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
 	return e;
 }
 
+// E     ::=    E1 ([+-] E1)*
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
+	p("parse_E");
 	Parsed e = parse_E1(current, end);
 	auto it = e.next;
 	while(it->type == T1Operator) {
+		p(it->show());
 		Parsed e2 = parse_E1(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
@@ -188,6 +268,7 @@ Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
 }
 
 Parsed parse(const TokenIterator& current, const TokenIterator& end) {
+	p("parse");
 	Parsed e = parse_E(current, end);
 	if(e.next->type == TEnd) {
 		return e;
@@ -216,5 +297,27 @@ void print_ast(AST* ast) {
 	if(ast->t == EError)
 		return;
 	cout << show_ast(ast) << endl;
+}
+
+S pretty_show_ast(AST* ast) {
+	switch(ast->t) {
+		case EApply:
+			return "(" + pretty_show_ast(ast->e1) + " " + ast->op + " " + pretty_show_ast(ast->e2) + ")";
+		case EValue: {
+			std::string r = to_string(ast->n);
+			r.erase(r.find_last_not_of('0') + 1, string::npos);
+			r.erase(r.find_last_not_of('.') + 1, string::npos);
+			return r;
+	}
+		case ESymbol:
+			return ast->ref;
+		case EError:
+			return "Error";
+	}
+	return "Unknown";
+}
+
+void pretty_print_ast(AST* ast) {
+	cout << pretty_show_ast(ast) << endl;
 }
 
