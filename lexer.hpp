@@ -89,6 +89,7 @@ bool isPrefix(S s) {
 
 bool isAsciiOperator(C c) {
 	return c != '.' && !isspace(c) && !isPrefix(string(1, c))
+		&& c != '(' && c != ')'
 		&& ((c >= 0 && c <= 47)
 				|| (c >= 58 && c <= 64)
 				|| (c >= 91 && c <= 94)
@@ -239,7 +240,6 @@ Tokens lex_line(F f) {
 			f->get(c);
 			tokens.push_back({ TPrefix, string(1, prefix), 1, 1, "" });
 			c = f->peek();
-			// Reference as value and reference as expression
 			if (isdigit(c)) {
 				tokens.push_back(lex_integral(f));
 			}
