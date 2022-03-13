@@ -10,7 +10,7 @@ void run_warn(S what) {
 }
 
 void run_err(S what) {
-	cout << "Error: " << what << std::endl;
+	cout << ANSI_FG_RED << "Error: " << what << ANSI_RESET << std::endl;
 }
 
 struct Val {

@@ -2,9 +2,17 @@
 
 #include <iostream>
 
+#include "ansi_code.h"
 #include "types.hpp"
 #include "state.hpp"
 #include "lexer.hpp"
+
+string to_trimmed_string(N n) {
+	std::string r = to_string(n);
+	r.erase(r.find_last_not_of('0') + 1, string::npos);
+	r.erase(r.find_last_not_of('.') + 1, string::npos);
+	return r;
+}
 
 void parse_debug(std::string const& s) {
 	if(PARSE_DEBUG) std::cout << s << "\n";
@@ -15,7 +23,7 @@ void parse_warn(S const& what) {
 }
 
 void parse_err(S const& what) {
-	cout << "Error: " << what << std::endl;
+	cout << ANSI_FG_RED << "Error: " << what << ANSI_RESET << std::endl;
 	parse_error = true;
 }
 
@@ -44,6 +52,11 @@ struct Parsed {
 	TokenIterator next;
 };
 
+// Rounding error, is it a problem?
+// 2^1^8+2*1-6/9/5/5^8+2
+// Now: 6
+// Expected: 5.99999965867
+
 // Left associativity of all operators except ^
 // 1/2/3/4
 // Now: (1 / (2 / (3 / 4)))
@@ -62,6 +75,8 @@ struct Parsed {
 
 // TODO assignment
 // E6    ::=    Symbol (<- E)* | (E) | Number | Const | Ref
+// TODO application; evaluate if symbol is function
+// E5    ::=    E6*
 
 // Grammar
 // E6    ::=    (E) | Symbol | Number | Const | Ref
@@ -148,7 +163,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 	}
 
 	if (exprs.size() == 0) {
-		parse_err("Unexpected " + it->show() + " when parsing E2 expression");
+		parse_err("Unexpected " + it->show() + " when parsing expression");
 		AST* a = new AST;
 		a->t = EError;
 		return { a, it };
@@ -282,13 +297,13 @@ S show_ast(AST* ast) {
 		case EApply:
 			return "Apply(" + show_ast(ast->e1)+ " " + ast->op + " " + show_ast(ast->e2) + ")";
 		case EValue:
-			return to_string(ast->n);
+			return ANSI_FG_YELLOW + to_string(ast->n) + ANSI_RESET;
 		case ESymbol:
-			return ast->ref;
+			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
 		case EError:
-			return "Error";
+			return ANSI_FG_RED + string("Error") + ANSI_RESET;
 	}
-	return "Unknown";
+	return ANSI_FG_GRAY + string("Unknown") + ANSI_RESET;
 }
 
 void print_ast(AST* ast) {
@@ -302,17 +317,14 @@ S pretty_show_ast(AST* ast) {
 		case EApply:
 			return "(" + pretty_show_ast(ast->e1) + " " + ast->op + " " + pretty_show_ast(ast->e2) + ")";
 		case EValue: {
-			std::string r = to_string(ast->n);
-			r.erase(r.find_last_not_of('0') + 1, string::npos);
-			r.erase(r.find_last_not_of('.') + 1, string::npos);
-			return r;
+			return ANSI_FG_YELLOW + to_trimmed_string(ast->n) + ANSI_RESET;
 	}
 		case ESymbol:
-			return ast->ref;
+			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
 		case EError:
-			return "Error";
+			return ANSI_FG_RED + string("Error") + ANSI_RESET;
 	}
-	return "Unknown";
+	return ANSI_FG_GRAY + string("Unknown") + ANSI_RESET;
 }
 
 void pretty_print_ast(AST* ast) {

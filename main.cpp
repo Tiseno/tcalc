@@ -3,6 +3,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+#include "ansi_code.h"
 #include "types.hpp"
 #include "state.hpp"
 #include "lexer.hpp"
@@ -16,7 +17,7 @@ int main() {
 
 	I repl_counter = 0;
 	while(true) {
-		S prompt = to_string(repl_counter) + " <- ";
+		S prompt = ANSI_FG_GRAY + to_string(repl_counter) + " <- " + ANSI_RESET;
 		S in = readline(prompt.c_str());
 		if(in.length() == 0) {
 			cout << "\e[A" << '\r' << "                    " << endl;
@@ -30,24 +31,26 @@ int main() {
 		print_tokens(tokens);
 #endif
 
-		Parsed ast = parse(tokens.begin(), tokens.end());
+		Parsed parsed = parse(tokens.begin(), tokens.end());
 #ifdef DEBUG
-		print_ast(ast.e);
-		pretty_print_ast(ast.e);
+		print_ast(parsed.e);
 #endif
+
+		if(parsed.e->t != EValue)
+			pretty_print_ast(parsed.e);
 
 		if(parse_error) {
 			parse_error = false;
 			continue;
 		}
 
-		Val out = run(ast.e);
+		Val out = run(parsed.e);
 
 		if(!out.error) {
 			repl_n[repl_counter] = out.n;
 			repl_s[repl_counter] = in;
 			repl_counter++;
-			cout << out.n << endl;
+			cout << ANSI_FG_YELLOW << to_trimmed_string(out.n) << ANSI_RESET << endl;
 		}
 	}
 	return 0;
