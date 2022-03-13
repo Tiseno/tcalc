@@ -54,7 +54,7 @@ int main(int argc, char * argv[]) {
 		print_ast(parsed.e);
 #endif
 
-		if(parsed.e->t != EValue)
+		if(parsed.e->t != EValue && parsed.e->t != EError)
 			pretty_print_ast(parsed.e);
 
 		if(parse_error) {

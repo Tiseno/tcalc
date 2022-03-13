@@ -13,6 +13,7 @@ Command line calculator.
 - [ ] pretty print with precedences
 - [ ] evaluate constants in eval
 - [ ] symbols mapping to built in functions
-- [ ] ability to define functions
+- [ ] ability to define functions and symbols
 - [ ] automatically cache results from executions and functions
+- [ ] use something more precis than floats
 
