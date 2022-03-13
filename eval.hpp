@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "state.hpp"
 #include "types.hpp"
 #include "parser.hpp"
 
@@ -55,9 +56,19 @@ Val run(AST* ast) {
 				run_err("Could not evaluate symbol '" + ast->ref + "'");
 				return { 0, true };
 			}
+		case ERef:
+			{
+				auto n = repl_n.find(stoll(ast->ref));
+				if(n == repl_n.end()) {
+					run_err("Line " + ast->ref + " not executed yet");
+					return { 0, true };
+				} else {
+					return { n->second, false };
+				}
+			}
 		case EError:
 			{
-				run_err("Encountered error token");
+				run_err("Encountered error node" + show_ast(ast));
 				return { 0, true };
 			}
 		default:

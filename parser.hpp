@@ -31,10 +31,9 @@ enum ASTType {
 	EApply,
 	EValue,
 	ESymbol,
+	ERef,
 	EError,
 };
-
-struct AST;
 
 struct AST {
 	ASTType t;
@@ -99,8 +98,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 				|| it->type == TSymbol
 				|| it->type == TNumber
 				|| it->type == TConstant
-				|| it->type == TRefIntegral
-				|| it->type == TRefSymbol)) {
+				|| it->type == TPrefix)) { // TODO update the grammar with prefix
 		parse_debug(it->show());
 		if(it->type == TLParen) {
 			it = next(it);
@@ -128,6 +126,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 				AST* a = new AST();
 				a->t = EValue;
 				auto constant = constants.find(it->s);
+				// TODO do this in eval
 				if(constant == constants.end()) {
 					parse_err("Could not find constant '" + it->s + "'");
 					a->t = EError;
@@ -135,28 +134,53 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 					a->n = constant->second;
 				}
 				exprs.push_back(a);
-			} else if(it->type == TRefIntegral ) {
-				AST* a = new AST();
-				a->t = EValue;
-				auto n = repl_n.find(it->i);
-				if(n == repl_n.end()) {
-					parse_err("Line " + to_string(it->i) + " not executed yet");
-					a->t = EError;
+			} else if(it->type == TPrefix) {
+				if(it->s == "!") {
+					AST* a = new AST();
+					a->op = it->s;
+					a->t = ERef;
+					it = next(it);
+					if(it->type == TIntegral) {
+						a->ref = to_string(it->i);
+					} else if(it->type == TPrefix && it->s == a->op) {
+						a->ref = to_string(repl_n.size() == 0 ? 0 : repl_n.size() - 1);
+					} else {
+						parse_err("Expected integer or ! after !");
+					}
+					exprs.push_back(a);
+				} else if(it->s == "#") {
+					auto prefix = it->s;
+					it = next(it);
+					I ref;
+					if(it->type == TIntegral) {
+						ref = it->i;
+					} else if(it->type == TPrefix && it->s == prefix) {
+						ref = repl_e.size() - 1;
+					} else {
+						parse_err("Expected integer or # after #");
+					}
+
+					if(parse_error) {
+						AST* a = new AST();
+						a->t = EError;
+						exprs.push_back(a);
+					} else {
+						auto e = repl_e.find(ref);
+						if(!parse_error && e != repl_e.end()) {
+							exprs.push_back(e->second);
+						} else {
+							parse_err("There is no previous line");
+							AST* a = new AST();
+							a->t = EError;
+							exprs.push_back(a);
+						}
+					}
 				} else {
-					a->n = n->second;
-				}
-				exprs.push_back(a);
-			} else if(it->type == TRefSymbol) {
-				AST* a = new AST();
-				a->t = EValue;
-				auto n = refs.find(it->s);
-				if(n == refs.end()) {
-					parse_err("Could not find reference '" + it->s + "'");
+					parse_err("Prefix " + string(it->s) + " not implemented");
+					AST* a = new AST();
 					a->t = EError;
-				} else {
-					a->n = n->second;
+					exprs.push_back(a);
 				}
-				exprs.push_back(a);
 			}
 			it = next(it);
 		}
@@ -300,6 +324,8 @@ S show_ast(AST* ast) {
 			return ANSI_FG_YELLOW + to_string(ast->n) + ANSI_RESET;
 		case ESymbol:
 			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
+		case ERef:
+			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:
 			return ANSI_FG_RED + string("Error") + ANSI_RESET;
 	}
@@ -318,9 +344,11 @@ S pretty_show_ast(AST* ast) {
 			return "(" + pretty_show_ast(ast->e1) + " " + ast->op + " " + pretty_show_ast(ast->e2) + ")";
 		case EValue: {
 			return ANSI_FG_YELLOW + to_trimmed_string(ast->n) + ANSI_RESET;
-	}
+		}
 		case ESymbol:
 			return ANSI_FG_CYAN + ast->ref + ANSI_RESET;
+		case ERef:
+			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:
 			return ANSI_FG_RED + string("Error") + ANSI_RESET;
 	}

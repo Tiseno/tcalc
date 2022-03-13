@@ -21,8 +21,6 @@ enum TokenType {
 	T4Operator,
 	T5Operator,
 	TPrefix,
-	TRefIntegral,
-	TRefSymbol,
 	TEnd,
 };
 
@@ -62,10 +60,6 @@ struct Token {
 			return "Operator5[" + s + "]" + show_err();
 		} else if(type == TPrefix) {
 			return "Prefix[" + s + "]" + show_err();
-		} else if(type == TRefIntegral) {
-			return "RefIntegral[" + to_string(i) + "]" + show_err();
-		} else if(type == TRefSymbol) {
-			return "RefSymbol[" + s + "]" + show_err();
 		} else if(type == TLParen) {
 			return "LParen" + show_err();
 		} else if(type == TRParen) {
@@ -242,22 +236,12 @@ Tokens lex_line(F f) {
 			tokens.push_back(lex_constant(f));
 		} else if(isAsciiPrefix(c)) {
 			C prefix = c;
-			if (c == '!') {
-				f->get(c);
-				c = f->peek();
-				if (isdigit(c)) {
-					auto t = lex_integral(f);
-					t.type = TRefIntegral;
-					tokens.push_back(t);
-				} else {
-					auto t = lex_symbol(f);
-					t.type = TRefSymbol;
-					tokens.push_back(t);
-				}
-			} else {
-				f->get(c);
-				tokens.push_back({ TPrefix, string(1, prefix), 1, 1, "" });
-				c = f->peek();
+			f->get(c);
+			tokens.push_back({ TPrefix, string(1, prefix), 1, 1, "" });
+			c = f->peek();
+			// Reference as value and reference as expression
+			if (isdigit(c)) {
+				tokens.push_back(lex_integral(f));
 			}
 		} else if(c == '.' || isdigit(c)) {
 			tokens.push_back(lex_number(f));

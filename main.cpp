@@ -66,7 +66,7 @@ int main(int argc, char * argv[]) {
 
 		if(!out.error) {
 			repl_n[repl_counter] = out.n;
-			repl_s[repl_counter] = in;
+			repl_e[repl_counter] = parsed.e;
 			repl_counter++;
 			cout << ANSI_FG_YELLOW << to_trimmed_string(out.n) << ANSI_RESET << endl;
 		}

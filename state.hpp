@@ -18,8 +18,10 @@ unordered_map<S, N> constants = {
 
 unordered_map<S, N> refs;
 
+struct AST;
+
 unordered_map<I, N> repl_n;
-unordered_map<I, S> repl_s;
+unordered_map<I, AST*> repl_e;
 
 bool REPL = true;
 
