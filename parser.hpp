@@ -81,7 +81,7 @@ struct Parsed {
 // Grammar
 // E6    ::=    (E) | Symbol | Number | Const | Ref
 // E5    ::=    E6*
-// E4    ::=    E5 '^' E4 | E4
+// E4    ::=    E5 '^' E4 | E5
 // E3    ::=    E4 ('/' E4)*
 // E2    ::=    E3 ('*' E3)*
 // E1    ::=    E2 (Op E2)*
