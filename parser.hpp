@@ -6,15 +6,15 @@
 #include "state.hpp"
 #include "lexer.hpp"
 
-bool debug = false;
+void parse_debug(std::string const& s) {
+	if(PARSE_DEBUG) std::cout << s << "\n";
+}
 
-void p(std::string s) { if(debug) std::cout << s << "\n"; }
-
-void parse_warn(S what) {
+void parse_warn(S const& what) {
 	cout << "Warning: " << what << std::endl;
 }
 
-void parse_err(S what) {
+void parse_err(S const& what) {
 	cout << "Error: " << what << std::endl;
 	parse_error = true;
 }
@@ -44,12 +44,12 @@ struct Parsed {
 	TokenIterator next;
 };
 
-// Left associativity of all operators
+// Left associativity of all operators except ^
 // 1/2/3/4
 // Now: (1 / (2 / (3 / 4)))
 // Expected: ((1 / 2) / 3) / 4
 // 0.0416666666667
-// 2.^3./4.^5./6.^7./2.^3./4.*3.
+// 2^3/4^5/6^7/2^3/4*3
 // Now:      (2 ^ (3 / (4 ^ (5 / (6 ^ (7 / (2 ^ (3 / (4 * 3)))))))))
 // Expected: (((((2 ^ 3) / (4 ^ 5)) / (6 ^ 7)) / (2 ^ 3)) / 4) * 3
 // 2.61639044282e-9
@@ -63,21 +63,20 @@ struct Parsed {
 // TODO assignment
 // E6    ::=    Symbol (<- E)* | (E) | Number | Const | Ref
 
-// New grammar
+// Grammar
 // E6    ::=    (E) | Symbol | Number | Const | Ref
 // E5    ::=    E6*
-// E4    ::=    E5 ^ E4 | E5
-// E3    ::=    E4 / E3 | E4
-// E2    ::=    E3 * E2 | E3
-// E1    ::=    E2 Op E1 | E2
-// E     ::=    E1 + E | E1 - E | E1
+// E4    ::=    E5 '^' E4 | E4
+// E3    ::=    E4 ('/' E4)*
+// E2    ::=    E3 ('*' E3)*
+// E1    ::=    E2 (Op E2)*
+// E     ::=    E1 (('+'|'-') E1)*
 // P     ::=    E EOF
 
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end);
 
-// E5_6  ::=    ((E) | Symbol | Number | Const | Ref)*
 Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E5_6");
+	parse_debug("parse_E5_6");
 	auto it = current;
 	vector<AST*> exprs;
 	while(it != end
@@ -87,7 +86,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 				|| it->type == TConstant
 				|| it->type == TRefIntegral
 				|| it->type == TRefSymbol)) {
-		p(it->show());
+		parse_debug(it->show());
 		if(it->type == TLParen) {
 			it = next(it);
 			Parsed e = parse_E(it, end);
@@ -180,12 +179,12 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 	return { a, it };
 }
 
-// E4    ::=    E5 ^ E4 | E5
 Parsed parse_E4(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E4");
+	parse_debug("parse_E4");
 	Parsed e = parse_E5_6(current, end);
 	auto it = e.next;
-	if(it->type == T5Operator) {
+	// This does not use while as ^ is right associative
+	if(it->type == T4Operator) {
 		Parsed e2 = parse_E4(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
@@ -197,64 +196,63 @@ Parsed parse_E4(const TokenIterator& current, const TokenIterator& end) {
 	return e;
 }
 
-// E3    ::=    E4 / E3 | E4
 Parsed parse_E3(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E3");
+	parse_debug("parse_E3");
 	Parsed e = parse_E4(current, end);
 	auto it = e.next;
-	if(it->type == T4Operator) {
+	while(it->type == T3Operator) {
+		Parsed e2 = parse_E4(next(it), end);
+		AST* b = new AST;
+		b->t = EApply;
+		b->e1 = e.e;
+		b->e2 = e2.e;
+		b->op = it->s;
+		it = e2.next;
+		e = { b, it };
+	}
+	return e;
+}
+
+Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
+	parse_debug("parse_E2");
+	Parsed e = parse_E3(current, end);
+	auto it = e.next;
+	while(it->type == T2Operator) {
 		Parsed e2 = parse_E3(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
 		b->e1 = e.e;
 		b->e2 = e2.e;
 		b->op = it->s;
-		return { b, e2.next };
+		it = e2.next;
+		e = { b, it };
 	}
 	return e;
 }
 
-// E2    ::=    E3 * E2 | E3
-Parsed parse_E2(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E2");
-	Parsed e = parse_E3(current, end);
+Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
+	parse_debug("parse_E1");
+	Parsed e = parse_E2(current, end);
 	auto it = e.next;
-	if(it->type == T3Operator) {
+	while(it->type == T1Operator) {
 		Parsed e2 = parse_E2(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
 		b->e1 = e.e;
 		b->e2 = e2.e;
 		b->op = it->s;
-		return { b, e2.next };
+		it = e2.next;
+		e = { b, it };
 	}
 	return e;
 }
 
-// E1    ::=    E2 Op E1 | E2
-Parsed parse_E1(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E1");
-	Parsed e = parse_E2(current, end);
-	auto it = e.next;
-	if(it->type == T2Operator) {
-		Parsed e2 = parse_E1(next(it), end);
-		AST* b = new AST;
-		b->t = EApply;
-		b->e1 = e.e;
-		b->e2 = e2.e;
-		b->op = it->s;
-		return { b, e2.next };
-	}
-	return e;
-}
-
-// E     ::=    E1 ([+-] E1)*
 Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
-	p("parse_E");
+	parse_debug("parse_E");
 	Parsed e = parse_E1(current, end);
 	auto it = e.next;
-	while(it->type == T1Operator) {
-		p(it->show());
+	while(it->type == T0Operator) {
+		parse_debug(it->show());
 		Parsed e2 = parse_E1(next(it), end);
 		AST* b = new AST;
 		b->t = EApply;
@@ -268,7 +266,7 @@ Parsed parse_E(const TokenIterator& current, const TokenIterator& end) {
 }
 
 Parsed parse(const TokenIterator& current, const TokenIterator& end) {
-	p("parse");
+	parse_debug("parse");
 	Parsed e = parse_E(current, end);
 	if(e.next->type == TEnd) {
 		return e;

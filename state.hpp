@@ -25,3 +25,5 @@ bool REPL = true;
 
 bool parse_error = false;
 
+const bool PARSE_DEBUG = true;
+
