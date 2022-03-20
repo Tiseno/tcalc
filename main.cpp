@@ -64,11 +64,12 @@ int main(int argc, char * argv[]) {
 
 		Val out = run(parsed.e);
 
-		if(!out.error) {
+		if(out.type != VError) {
+			// TODO save value not n
 			repl_n[repl_counter] = out.n;
 			repl_e[repl_counter] = parsed.e;
 			repl_counter++;
-			cout << ANSI_FG_YELLOW << to_trimmed_string(out.n) << ANSI_RESET << endl;
+			cout << show_val(out) << endl;
 		}
 		cout << endl;
 	}
