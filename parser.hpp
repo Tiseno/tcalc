@@ -75,11 +75,9 @@ struct Parsed {
 
 // TODO assignment
 // E6    ::=    Symbol (<- E)* | (E) | Number | Const | Ref
-// TODO application; evaluate if symbol is function
-// E5    ::=    E6*
 
 // Grammar
-// E6    ::=    (E) | Symbol | Number | Const | Ref
+// E6    ::=    (E) | Symbol | Number | Const | Ref | Prefix Prefix | Prefix Integer
 // E5    ::=    E6*
 // E4    ::=    E5 '^' E4 | E5
 // E3    ::=    E4 ('/' E4)*
@@ -99,7 +97,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 				|| it->type == TSymbol
 				|| it->type == TNumber
 				|| it->type == TConstant
-				|| it->type == TPrefix)) { // TODO update the grammar with prefix
+				|| it->type == TPrefix)) {
 		parse_debug(it->show());
 		if(it->type == TLParen) {
 			it = next(it);
@@ -185,31 +183,26 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 		AST* a = new AST;
 		a->t = EError;
 		return { a, it };
-	}
-
-	if (exprs.size() == 1) {
+	} else if (exprs.size() == 1) {
 		return { exprs[0], it };
-	}
+	} else {
+		AST* a = new AST;
+		a->t = EApply;
+		a->e1 = exprs[0];
+		a->e2 = exprs[1];
+		a->op = "";
 
-	AST* a = new AST;
-	a->t = EApply;
-	a->e1 = exprs[0];
-	a->op = "*";
-	AST* b = a;
-	for(size_t i = 1; i < exprs.size(); i++) {
-		if(i >= exprs.size()-1) { // Last element, we insert ourselves as the second expression
+		for(size_t i = 2; i < exprs.size(); i++) {
+			AST* b = new AST;
+			b->t = EApply;
+			b->e1 = a;
 			b->e2 = exprs[i];
-			break;
-		} else { // If not last element we insert an application for this and the next element as second expression
-			b->e2 = new AST;
-			b->e2->t = EApply;
-			b->e2->e1 = exprs[i];
-			b->e2->op = "*";
-			b = b->e2;
+			b->op = "";
+			a = b;
 		}
-	}
 
-	return { a, it };
+		return { a, it };
+	}
 }
 
 Parsed parse_E4(const TokenIterator& current, const TokenIterator& end) {
@@ -313,7 +306,11 @@ S show_ast(AST* ast);
 S show_ast(AST* ast) {
 	switch(ast->t) {
 		case EApply:
-			return "Apply(" + show_ast(ast->e1)+ " " + ast->op + " " + show_ast(ast->e2) + ")";
+			if (ast->op == "") {
+				return "Apply(" + show_ast(ast->e1) + ", " + show_ast(ast->e2) + ")";
+			} else {
+				return "Apply(" + show_ast(ast->e1)+ " " + ast->op + " " + show_ast(ast->e2) + ")";
+			}
 		case EValue:
 			return ANSI_FG_YELLOW + to_string(ast->n) + ANSI_RESET;
 		case ESymbol:
@@ -334,10 +331,23 @@ void print_ast(AST* ast) {
 	cout << show_ast(ast) << endl;
 }
 
-S pretty_show_ast(AST* ast) {
+S pretty_show_ast(AST* ast, size_t level) {
 	switch(ast->t) {
-		case EApply:
-			return "(" + pretty_show_ast(ast->e1) + " " + ast->op + " " + pretty_show_ast(ast->e2) + ")";
+		case EApply: {
+			if (ast->op == "") {
+				return pretty_show_ast(ast->e1, level+1) + " " + pretty_show_ast(ast->e2, level+1);
+			} else {
+				S s = "";
+				if(level != 0) {
+					s += "(";
+				}
+				s += pretty_show_ast(ast->e1, level+1) + "" + ast->op + "" + pretty_show_ast(ast->e2, level+1);
+				if(level != 0) {
+					s += ")";
+				}
+				return s;
+			}
+		}
 		case EValue: {
 			return ANSI_FG_YELLOW + to_trimmed_string(ast->n) + ANSI_RESET;
 		}
@@ -354,6 +364,6 @@ S pretty_show_ast(AST* ast) {
 }
 
 void pretty_print_ast(AST* ast) {
-	cout << pretty_show_ast(ast) << endl;
+	cout << pretty_show_ast(ast, 0) << endl;
 }
 

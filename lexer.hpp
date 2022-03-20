@@ -87,6 +87,10 @@ bool isPrefix(S s) {
 	return s == "!" || s == "@" || s == "#" || s == "¤" || s == "§" ;
 }
 
+bool isParenthesis(C c) {
+	return c == '(' || c == ')';
+}
+
 bool isAsciiOperator(C c) {
 	return c != '.' && !isspace(c) && !isPrefix(string(1, c))
 		&& c != '(' && c != ')'
@@ -168,7 +172,7 @@ Token lex_symbol(F f) {
 	S s = "";
 	S prefix = "";
 	// Supports UTF-8, and we need to do it explicitly so we can break on our supported symbols
-	while(c == '_' || isPrefix(string(1, c)) || (!isdigit(c) && !isspace(c) && !isAsciiOperator(c) && !isCapitalLetter(c) && c != EOF)) {
+	while(c == '_' || isPrefix(string(1, c)) || (!isdigit(c) && !isspace(c) && !isAsciiOperator(c) && !isCapitalLetter(c) && !isParenthesis(c) && c != EOF)) {
 		I begin = f->tellg();
 		if(c >= 0) { // ASCII char
 			if(isPrefix(string(1, c))) {
@@ -218,13 +222,6 @@ Token lex_symbol(F f) {
 		c = f->peek();
 	}
 
-	// TODO check prefix and make reference token
-	// if(prefix == "")
-	// 	;
-	// else if(prefix == "§")
-	// 	cout << "REFERENCE" << endl;
-	// else
-	// 	cout << "UNKNOWN PREFIX" << prefix << endl;
 	return { TSymbol, s, 1, 1, "" };
 }
 
