@@ -2,9 +2,9 @@
 Command line calculator.
 
 ### Features
-* Defined constants `PI`, `TAU`, `E`, `PHI`, `USD_TO_SEK`, `SEK_TO_USD`, `INF`, `CPW`, `WPC`, `C`.
+* Defined constants `PI`, `TAU`, `E`, `PHI`, `USD_SEK`, `SEK_USD`, `INF`, `CPW`, `WPC`, `C`.
 * Built in functions from the cmath library `cos`, `sin`, `tan`, `acos`, `asin`, `atan`, `cosh`, `sinh`, `tanh`, `acosh`, `asinh`, `atanh`, `sqrt`, `cbrt`, `exp`, `exp2`, `log`, `log10`, `tgamma`, `lgamma`, `abs`, `ceil`, `floor`, `trunc`, `round`.
-* Referencing previous result as value or as expression using `!I`, `#I` where I is the line number and `!!`, `##` means previous expression.
+* Referencing previous result as value or as expression using `!I`, `#I` where I is the line number and `!!`, `##` the last executed line.
 
 ### TODO
 - [x] symbols mapping to built in constants
@@ -24,6 +24,9 @@ Command line calculator.
 - [ ] use something more precis than floats
 - [ ] custom operators
 - [ ] complex number support
+- [ ] persisted history
+- [ ] pull fresh currency constants from the web
+- [ ] all conversion constants on the form XXX_XXX
 
 ### Bugs
 - [x] "(" is parsed as valid character for symbol; cos(5x) parses as "cos(" "5" "x)"
