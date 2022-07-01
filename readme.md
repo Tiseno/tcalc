@@ -1,6 +1,11 @@
 # calc
 Command line calculator.
 
+# Dependencies
+```
+sudo apt-get install libreadline-dev
+```
+
 ### Features
 * Defined constants `PI`, `TAU`, `E`, `PHI`, `USD_SEK`, `SEK_USD`, `INF`, `CPW`, `WPC`, `C`.
 * Built in functions from the cmath library `cos`, `sin`, `tan`, `acos`, `asin`, `atan`, `cosh`, `sinh`, `tanh`, `acosh`, `asinh`, `atanh`, `sqrt`, `cbrt`, `exp`, `exp2`, `log`, `log10`, `tgamma`, `lgamma`, `abs`, `ceil`, `floor`, `trunc`, `round`.
@@ -21,7 +26,7 @@ Command line calculator.
 - [ ] pretty print with precedences
 - [ ] ability to define functions and symbols
 - [ ] automatically cache results from executions and functions
-- [ ] use something more precis than floats
+- [ ] use something more precise than floats
 - [ ] custom operators
 - [ ] complex number support
 - [ ] persisted history

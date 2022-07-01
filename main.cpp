@@ -27,7 +27,7 @@ int main(int argc, char * argv[]) {
 
 	I repl_counter = 0;
 	while(true) {
-		S prompt = ANSI_FG_GRAY + to_string(repl_counter) + " <- " + ANSI_RESET;
+		S prompt = ANSI_FG_GREEN_DARK + to_string(repl_counter) + " <- " + ANSI_RESET;
 		S in;
 		if(argument_expr == "") {
 			in = readline(prompt.c_str());

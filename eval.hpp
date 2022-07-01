@@ -163,7 +163,7 @@ Val run(AST* ast) {
 			}
 		case EError:
 			{
-				run_err("Encountered error node" + show_ast(ast));
+				run_err("Encountered error node " + show_ast(ast));
 				return makeError();
 			}
 		default:

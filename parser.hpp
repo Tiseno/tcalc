@@ -18,15 +18,6 @@ void parse_debug(std::string const& s) {
 	if(PARSE_DEBUG) std::cout << s << "\n";
 }
 
-void parse_warn(S const& what) {
-	cout << "Warning: " << what << std::endl;
-}
-
-void parse_err(S const& what) {
-	cout << ANSI_FG_RED << "Error: " << what << ANSI_RESET << std::endl;
-	parse_error = true;
-}
-
 enum ASTType {
 	EApply,
 	EValue,
@@ -47,6 +38,24 @@ struct AST {
 	S op;
 };
 
+void parse_err_msg_n(I i, S const& what) {
+	cout << ANSI_FG_RED << "Parse error " << i << ": " << what << ANSI_RESET << std::endl;
+}
+
+I error_count = 1;
+AST* makeAstError(S const& what) {
+	AST* a = new AST();
+	a->t = EError;
+	a->i = error_count++;
+	std::cout << a->i << '\n';
+	parse_err_msg_n(a->i, what);
+	return a;
+}
+
+void parse_err_msg(S const& what) {
+	cout << ANSI_FG_RED << "Parse error " << error_count++ << ": " << what << ANSI_RESET << std::endl;
+}
+
 struct Parsed {
 	AST* e;
 	TokenIterator next;
@@ -59,18 +68,20 @@ struct Parsed {
 
 // Left associativity of all operators except ^
 // 1/2/3/4
-// Now: (1 / (2 / (3 / 4)))
+// Now:      ((1 / 2) / 3) / 4
 // Expected: ((1 / 2) / 3) / 4
 // 0.0416666666667
+
+// Left associativity of all operators except ^
 // 2^3/4^5/6^7/2^3/4*3
-// Now:      (2 ^ (3 / (4 ^ (5 / (6 ^ (7 / (2 ^ (3 / (4 * 3)))))))))
+// Now:      (((((2 ^ 3) / (4 ^ 5)) / (6 ^ 7)) / (2 ^ 3)) / 4) * 3
 // Expected: (((((2 ^ 3) / (4 ^ 5)) / (6 ^ 7)) / (2 ^ 3)) / 4) * 3
 // 2.61639044282e-9
 
 // Correct precedence
 // 10^6*1^2*10^6*10/10^8^1*8
-// Now:      (10 ^ (6 * (1 ^ (2 * (10 ^ (6 * (10 / (10 ^ (8 ^ (1 * 8))))))))))
-// Expected: (((((10 ^ 6) * (1 ^ 2)) * (10 ^ 6)) * 10) / (10 ^ (8 ^ 1))) * 8
+// Now:      ((((10 ^ 6) * (1 ^ 2)) * (10 ^ 6)) * (10 / (10 ^ (8 ^ 1)))) * 8
+// Expected: ((((10 ^ 6) * (1 ^ 2)) * (10 ^ 6)) * (10 / (10 ^ (8 ^ 1)))) * 8
 // 800000
 
 // TODO assignment
@@ -90,6 +101,7 @@ Parsed parse_E(const TokenIterator& current, const TokenIterator& end);
 
 Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 	parse_debug("parse_E5_6");
+	bool parse_error = false;
 	auto it = current;
 	vector<AST*> exprs;
 	while(it != end
@@ -104,7 +116,8 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 			Parsed e = parse_E(it, end);
 			it = e.next;
 			if(it->type != TRParen) {
-				parse_err("Expected right parens"); // TODO Handle error better
+				parse_err_msg("Expected right parens"); // TODO Handle error better
+				parse_error = true;
 			} else {
 				it = next(it);
 			}
@@ -134,12 +147,13 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 					it = next(it);
 					if(it->type == TIntegral) {
 						a->ref = to_string(it->i);
+						exprs.push_back(a);
 					} else if(it->type == TPrefix && it->s == a->op) {
 						a->ref = to_string(repl_n.size() == 0 ? 0 : repl_n.size() - 1);
+						exprs.push_back(a);
 					} else {
-						parse_err("Expected integer or ! after !");
+						exprs.push_back(makeAstError("Expected integer or ! after !"));
 					}
-					exprs.push_back(a);
 				} else if(it->s == "#") {
 					auto prefix = it->s;
 					it = next(it);
@@ -149,29 +163,21 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 					} else if(it->type == TPrefix && it->s == prefix) {
 						ref = repl_e.size() - 1;
 					} else {
-						parse_err("Expected integer or # after #");
+						parse_error = true;
 					}
 
 					if(parse_error) {
-						AST* a = new AST();
-						a->t = EError;
-						exprs.push_back(a);
+						exprs.push_back(makeAstError("Expected integer or # after #"));
 					} else {
 						auto e = repl_e.find(ref);
 						if(!parse_error && e != repl_e.end()) {
 							exprs.push_back(e->second);
 						} else {
-							parse_err("There is no previous line");
-							AST* a = new AST();
-							a->t = EError;
-							exprs.push_back(a);
+							exprs.push_back(makeAstError("There is no previous line"));
 						}
 					}
 				} else {
-					parse_err("Prefix " + string(it->s) + " not implemented");
-					AST* a = new AST();
-					a->t = EError;
-					exprs.push_back(a);
+					exprs.push_back(makeAstError("Prefix " + string(it->s) + " not implemented"));
 				}
 			}
 			it = next(it);
@@ -179,9 +185,7 @@ Parsed parse_E5_6(const TokenIterator& current, const TokenIterator& end) {
 	}
 
 	if (exprs.size() == 0) {
-		parse_err("Unexpected " + it->show() + " when parsing expression");
-		AST* a = new AST;
-		a->t = EError;
+		AST* a = makeAstError("Unexpected " + it->show() + " when parsing expression");
 		return { a, it };
 	} else if (exprs.size() == 1) {
 		return { exprs[0], it };
@@ -297,7 +301,7 @@ Parsed parse(const TokenIterator& current, const TokenIterator& end) {
 	if(e.next->type == TEnd) {
 		return e;
 	}
-	parse_err("Did not reach end of input when parsing expression");
+	parse_err_msg("Did not reach end of input when parsing expression");
 	return e;
 }
 
@@ -320,7 +324,7 @@ S show_ast(AST* ast) {
 		case ERef:
 			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:
-			return ANSI_FG_RED + string("Error") + ANSI_RESET;
+			return ANSI_FG_RED + string("Error(") + to_string(ast->i) + ")" + ANSI_RESET;
 	}
 	return ANSI_FG_GRAY + string("Unknown") + ANSI_RESET;
 }
@@ -358,7 +362,7 @@ S pretty_show_ast(AST* ast, size_t level) {
 		case ERef:
 			return ANSI_FG_ORANGE + ast->op + (ast->ref == "" ? ast->op : ast->ref) + ANSI_RESET;
 		case EError:
-			return ANSI_FG_RED + string("Error") + ANSI_RESET;
+			return ANSI_FG_RED + string("Error(") + to_string(ast->i) + ")" + ANSI_RESET;
 	}
 	return ANSI_FG_GRAY + string("Unknown") + ANSI_RESET;
 }
