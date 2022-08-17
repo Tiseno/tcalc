@@ -27,7 +27,7 @@ Options:
 	}
 
 	if(argc > 1 && strcmp(argv[1], "--version") == 0) {
-		std::cout << "1.0.0\n";
+		std::cout << "1.0.1\n";
 		return 0;
 	}
 

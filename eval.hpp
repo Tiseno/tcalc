@@ -60,12 +60,16 @@ unordered_map<S, Val> symbols = {
 	{"sqrt", makeFn(sqrt)},
 	{"cbrt", makeFn(cbrt)},
 
-	{"exp", makeFn(exp)},
-	{"exp2", makeFn(exp2)},
-	{"log", makeFn(log)},
-	{"log10", makeFn(log10)},
+	{"exp_e", makeFn(exp)},
+	{"exp_two", makeFn(exp2)},
+
+	{"log_e", makeFn(log)},
+	{"log_two", makeFn(log2)},
+	{"log_ten", makeFn(log10)},
 
 	{"tgamma", makeFn(tgamma)},
+	{"fact", makeFn(tgamma)},
+
 	{"lgamma", makeFn(lgamma)},
 
 	{"abs", makeFn(abs)},
