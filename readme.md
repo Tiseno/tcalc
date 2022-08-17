@@ -1,4 +1,4 @@
-# calc
+# tcalc
 Command line calculator.
 
 # Dependencies
