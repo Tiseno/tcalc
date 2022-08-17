@@ -57,8 +57,7 @@ int main(int argc, char * argv[]) {
 		if(parsed.e->t == EApply)
 			pretty_print_ast(parsed.e);
 
-		if(parse_error) {
-			parse_error = false;
+		if(ast_has_errors(parsed.e)) {
 			continue;
 		}
 

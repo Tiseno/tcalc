@@ -47,7 +47,6 @@ AST* makeAstError(S const& what) {
 	AST* a = new AST();
 	a->t = EError;
 	a->i = error_count++;
-	std::cout << a->i << '\n';
 	parse_err_msg_n(a->i, what);
 	return a;
 }
@@ -369,5 +368,16 @@ S pretty_show_ast(AST* ast, size_t level) {
 
 void pretty_print_ast(AST* ast) {
 	cout << pretty_show_ast(ast, 0) << endl;
+}
+
+bool ast_has_errors(AST* ast) {
+	switch(ast->t) {
+		case EApply:
+			return ast_has_errors(ast->e1) || ast_has_errors(ast->e2);
+		case EError:
+			return true;
+		default:
+			return false;
+	}
 }
 
